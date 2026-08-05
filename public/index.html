@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draft Order Plinko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --board-w: 640px;
+    --board-h: 780px;
+    --col: 64px;           /* one column width (board-w / 10) */
+    --yellow: #ffd21f;
+    --red: #e3272e;
+    --blue: #1541a0;
+    --deep: #0c1445;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Lilita One', 'Arial Black', sans-serif;
+    background:
+      radial-gradient(1200px 700px at 50% -100px, #2a3f9e 0%, #16226b 45%, var(--deep) 100%);
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: auto;
+    touch-action: manipulation;
+  }
+  /* faint studio starburst dots */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(2px 2px at 12% 20%, rgba(255,255,255,.35) 50%, transparent 51%),
+      radial-gradient(2px 2px at 85% 15%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(2px 2px at 70% 80%, rgba(255,255,255,.2) 50%, transparent 51%),
+      radial-gradient(2px 2px at 25% 75%, rgba(255,255,255,.25) 50%, transparent 51%),
+      radial-gradient(2px 2px at 50% 40%, rgba(255,255,255,.15) 50%, transparent 51%);
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: 250px minmax(660px, 1fr) 250px;
+    grid-template-rows: auto auto 1fr;
+    gap: 10px 14px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 10px 14px 30px;
+  }
+
+  /* ── Title ─────────────────────────────────────────── */
+  .title {
+    grid-column: 1 / 4; grid-row: 1;
+    text-align: center;
+    font-family: 'Titan One', 'Arial Black', sans-serif;
+    font-size: clamp(40px, 6vw, 72px);
+    line-height: 1.05;
+    letter-spacing: 2px;
+    color: var(--yellow);
+    -webkit-text-stroke: 2px #a30d12;
+    text-shadow:
+      3px 3px 0 var(--red), 5px 5px 0 #8c0e13,
+      7px 7px 0 rgba(0,0,0,.45),
+      0 0 26px rgba(255, 210, 31, .35);
+    transform: rotate(-2deg);
+    padding-top: 4px;
+  }
+
+  /* ── Name picker ───────────────────────────────────── */
+  .picker {
+    grid-column: 2; grid-row: 2;
+    justify-self: center;
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(#20308f, #101c5e);
+    border: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    z-index: 5;
+  }
+  .picker label { font-size: 20px; color: var(--yellow); text-shadow: 1px 1px 0 #000; }
+  .picker select {
+    font-family: inherit; font-size: 20px;
+    padding: 6px 12px;
+    border-radius: 8px; border: 2px solid #0a1030;
+    background: #fff8e1; color: #1a1a1a;
+    cursor: pointer;
+  }
+  .picker.shake { animation: shake .4s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+
+  /* ── Chip pile (top-left corner) ───────────────────── */
+  .chip-pile {
+    position: fixed; top: 12px; left: 14px;
+    width: 120px; height: 130px;
+    z-index: 60;
+  }
+  .chip-pile .pile-label {
+    position: absolute; bottom: -4px; left: 0; right: 0;
+    text-align: center; font-size: 15px; color: var(--yellow);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .chip {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, #fdfdf6 0 26%, transparent 27%),
+      repeating-conic-gradient(#e8e4d4 0deg 12deg, #fdfdf6 12deg 24deg);
+    border: 4px solid #d5cfb8;
+    box-shadow: inset 0 0 0 3px #fdfdf6, inset 0 0 12px rgba(0,0,0,.25), 0 4px 8px rgba(0,0,0,.55);
+    position: absolute;
+  }
+  .chip::after {
+    content: ''; position: absolute; inset: 30%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #ffffff, #ece7d5 70%);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
+  }
+  .chip-pile .chip { cursor: grab; }
+  .chip-pile .chip:nth-child(1) { top: 34px; left: 26px; }
+  .chip-pile .chip:nth-child(2) { top: 24px; left: 40px; }
+  .chip-pile .chip:nth-child(3) { top: 14px; left: 30px; }
+  .drag-chip {
+    position: fixed; z-index: 100; pointer-events: none;
+    cursor: grabbing;
+    transform: translate(-50%, -50%);
+  }
+  .fall-chip { position: absolute; z-index: 20; }
+
+  /* ── Instructions (left) ───────────────────────────── */
+  .instructions {
+    grid-column: 1; grid-row: 2 / 4;
+    margin-top: 130px;
+    background: linear-gradient(#20308f, #101c5e);
+    border: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 14px 14px 16px;
+    align-self: start;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  }
+  .instructions h2 {
+    font-family: 'Titan One', sans-serif;
+    color: var(--yellow); text-align: center;
+    font-size: 22px; margin-bottom: 10px;
+    text-shadow: 2px 2px 0 var(--red);
+  }
+  .instructions ol { list-style: none; counter-reset: n; }
+  .instructions li {
+    counter-increment: n;
+    position: relative;
+    padding: 6px 0 6px 34px;
+    font-size: 15px; line-height: 1.3;
+    font-family: Arial, sans-serif; font-weight: bold;
+    color: #f4f6ff;
+  }
+  .instructions li::before {
+    content: counter(n);
+    position: absolute; left: 0; top: 6px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--yellow); color: #14205e;
+    font-family: 'Titan One', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    box-shadow: 1px 2px 0 rgba(0,0,0,.4);
+  }
+
+  /* ── Draft order (right) ───────────────────────────── */
+  .order-panel {
+    grid-column: 3; grid-row: 2 / 4;
+    background: linear-gradient(#20308f, #101c5e);
+    border: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 12px;
+    align-self: start;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  }
+  .order-panel h2 {
+    font-family: 'Titan One', sans-serif;
+    color: var(--yellow); text-align: center;
+    font-size: 22px; margin-bottom: 10px;
+    text-shadow: 2px 2px 0 var(--red);
+  }
+  .order-panel ol { list-style: none; }
+  .order-panel li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 6px; margin: 3px 0;
+    background: rgba(0,0,0,.25); border-radius: 8px;
+    font-size: 17px; min-height: 32px;
+  }
+  .order-panel li .pos {
+    width: 40px; text-align: right;
+    color: var(--yellow); font-family: 'Titan One', sans-serif; font-size: 15px;
+  }
+  .order-panel li .who { color: #fff; }
+  .order-panel li .who.empty { color: rgba(255,255,255,.25); font-size: 13px; }
+  .order-panel li.just-added { animation: popIn .6s; }
+  @keyframes popIn { 0% { background: var(--yellow); color:#000; transform: scale(1.15);} 100% { transform: scale(1);} }
+
+  .side-buttons { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .btn {
+    font-family: 'Titan One', sans-serif;
+    font-size: 16px; padding: 8px 10px;
+    border-radius: 10px; border: 2px solid #7a0b10;
+    background: linear-gradient(#ff5157, var(--red) 60%, #b3161c);
+    color: #fff; text-shadow: 1px 1px 0 rgba(0,0,0,.5);
+    cursor: pointer; box-shadow: 0 3px 0 #7a0b10, 0 5px 10px rgba(0,0,0,.4);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a0b10; }
+  .btn.music-off { filter: grayscale(.8); }
+
+  /* ── Board ─────────────────────────────────────────── */
+  .board-wrap {
+    grid-column: 2; grid-row: 3;
+    justify-self: center;
+    position: relative;
+    margin-top: 6px;
+  }
+  .board {
+    position: relative;
+    width: var(--board-w); height: var(--board-h);
+    background:
+      linear-gradient(160deg, #fdfbf2 0%, #efe9d6 55%, #e4dcc2 100%);
+    border: 10px solid transparent;
+    border-image: linear-gradient(#ffe873, #d9a400) 1;
+    outline: 4px solid #8c6d00;
+    box-shadow: 0 18px 40px rgba(0,0,0,.65), inset 0 0 60px rgba(120,90,0,.15);
+  }
+  .board.locked { filter: grayscale(.85) brightness(.7); }
+  .lock-banner {
+    display: none;
+    position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%) rotate(-6deg);
+    z-index: 40;
+    background: var(--red); border: 4px solid #fff; border-radius: 12px;
+    font-family: 'Titan One', sans-serif;
+    font-size: 30px; padding: 14px 26px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  }
+  .board-wrap.locked .lock-banner { display: block; }
+
+  /* top slots */
+  .top-slots {
+    position: absolute; top: 0; left: 0; right: 0; height: 64px;
+    display: flex; z-index: 10;
+  }
+  .top-slot {
+    flex: 1; position: relative;
+    border-left: 6px solid #1a2a6e;
+    background: linear-gradient(#cfd6f2, #eef1fb 70%);
+    box-shadow: inset 0 -8px 12px rgba(20,40,110,.25);
+  }
+  .top-slot:first-child { border-left: none; }
+  .top-slot .arrow {
+    position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+    color: #93a0cf; font-size: 20px; font-family: Arial, sans-serif;
+    transition: color .1s, transform .1s;
+  }
+  .top-slot.hot { background: linear-gradient(#ffe873, #fff6c9 70%); }
+  .top-slot.hot .arrow { color: var(--red); transform: translateX(-50%) scale(1.4); }
+  .top-lip {
+    position: absolute; top: 64px; left: 0; right: 0; height: 8px;
+    background: linear-gradient(#1a2a6e, #33479e); z-index: 9;
+  }
+
+  .peg {
+    position: absolute; width: 14px; height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #cfd3da 45%, #6d7482 90%);
+    box-shadow: 1px 2px 3px rgba(0,0,0,.4);
+    transform: translate(-50%, -50%);
+  }
+  .peg.hit { animation: pegHit .18s; }
+  @keyframes pegHit { 50% { box-shadow: 0 0 12px 4px rgba(255,210,31,.9); } }
+
+  /* bottom slots */
+  .bottom-slots {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 120px;
+    display: flex; z-index: 10;
+  }
+  .bottom-slot {
+    flex: 1; position: relative;
+    border-left: 6px solid #1a2a6e;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    background: linear-gradient(rgba(26,42,110,.06), rgba(26,42,110,.16));
+    transition: background .3s;
+  }
+  .bottom-slot:first-child { border-left: none; }
+  .bottom-slot .num {
+    font-family: 'Titan One', sans-serif;
+    font-size: 30px; color: var(--blue);
+    text-shadow: 1px 1px 0 #fff, 2px 2px 2px rgba(0,0,0,.35);
+    margin-bottom: 4px; z-index: 2;
+  }
+  .bottom-slot .slot-name {
+    font-family: Arial, sans-serif; font-weight: bold;
+    font-size: 11px; color: #fff; z-index: 2;
+    background: rgba(0,0,0,.55); border-radius: 6px;
+    padding: 1px 5px; margin-bottom: 6px;
+    visibility: hidden; max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bottom-slot .cap {
+    position: absolute; top: -6px; left: -3px; right: -3px; height: 12px;
+    background: linear-gradient(#ff6b6f, #b3161c);
+    border: 2px solid #7a0b10; border-radius: 4px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.5);
+    visibility: hidden; z-index: 3;
+  }
+  .bottom-slot.filled { background: linear-gradient(rgba(227,39,46,.55), rgba(160,12,18,.85)); }
+  .bottom-slot.filled .num { color: #fff; text-shadow: 1px 1px 0 #7a0b10, 2px 2px 2px rgba(0,0,0,.5); }
+  .bottom-slot.filled .cap, .bottom-slot.filled .slot-name { visibility: visible; }
+  .bottom-slot .rest-chip {
+    position: absolute; bottom: 52px; left: 50%; transform: translate(-50%, 0) scale(.86);
+    visibility: hidden; z-index: 1;
+  }
+  .bottom-slot.filled .rest-chip { visibility: visible; }
+
+  /* ── Big result overlay ────────────────────────────── */
+  .result-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(5, 8, 40, .72);
+  }
+  .result-overlay.show { display: flex; }
+  .result-overlay .big-pos {
+    font-family: 'Titan One', sans-serif;
+    font-size: clamp(120px, 24vw, 260px);
+    color: var(--yellow);
+    -webkit-text-stroke: 4px #a30d12;
+    text-shadow: 6px 6px 0 var(--red), 12px 12px 0 rgba(0,0,0,.5), 0 0 60px rgba(255,210,31,.55);
+    animation: zoomIn .55s cubic-bezier(.2, 1.6, .4, 1);
+  }
+  .result-overlay .big-name {
+    font-family: 'Titan One', sans-serif;
+    font-size: clamp(28px, 5vw, 54px);
+    color: #fff; text-shadow: 3px 3px 0 var(--blue), 0 0 30px rgba(255,255,255,.4);
+    margin-top: 6px;
+    animation: zoomIn .7s cubic-bezier(.2, 1.6, .4, 1);
+  }
+  @keyframes zoomIn { 0% { transform: scale(.1) rotate(-10deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 300;
+    background: var(--red); border: 3px solid #fff; border-radius: 12px;
+    font-size: 18px; padding: 10px 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    display: none; text-align: center;
+  }
+  .toast.show { display: block; animation: shake .4s; }
+
+  @media (max-width: 1180px) {
+    .stage { grid-template-columns: 1fr; }
+    .title, .picker, .instructions, .order-panel, .board-wrap { grid-column: 1; }
+    .picker { grid-row: auto; }
+    .instructions { grid-row: auto; margin-top: 0; }
+    .order-panel { grid-row: auto; }
+    .board-wrap { grid-row: auto; }
+    .chip-pile { position: absolute; }
+  }
+</style>
+</head>
+<body>
+
+<audio id="theme" src="theme.mp3" loop preload="auto"></audio>
+
+<div class="stage">
+  <h1 class="title">Draft Order Plinko</h1>
+
+  <div class="picker" id="picker">
+    <label for="nameSel">Player:</label>
+    <select id="nameSel">
+      <option value="">— pick your name —</option>
+    </select>
+  </div>
+
+  <div class="instructions">
+    <h2>How To Play</h2>
+    <ol>
+      <li>Each slot at the top falls into a different slot at the bottom. It's completely random.</li>
+      <li>Pick your name from the drop down.</li>
+      <li>Click and drag a chip to a slot.</li>
+      <li>Release your chip.</li>
+      <li>You can only play 1 chip, then your draft position is locked in!</li>
+    </ol>
+  </div>
+
+  <div class="order-panel">
+    <h2>Draft Order</h2>
+    <ol id="orderList"></ol>
+    <div class="side-buttons">
+      <button class="btn" id="musicBtn">&#9835; Music</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <div class="board" id="board">
+      <div class="top-slots" id="topSlots"></div>
+      <div class="top-lip"></div>
+      <div class="bottom-slots" id="bottomSlots"></div>
+    </div>
+    <div class="lock-banner" id="lockBanner">BOARD LOCKED</div>
+  </div>
+</div>
+
+<div class="chip-pile" id="chipPile">
+  <div class="chip"></div>
+  <div class="chip"></div>
+  <div class="chip"></div>
+  <div class="pile-label">Grab a chip!</div>
+</div>
+
+<div class="result-overlay" id="resultOverlay">
+  <div class="big-pos" id="bigPos"></div>
+  <div class="big-name" id="bigName"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ── Geometry ──────────────────────────────────────────
+  const COLS = 10;
+  const COL_W = 64;                  // board width 640 / 10
+  const BOARD_W = 640, BOARD_H = 780;
+  const TOP_H = 72;                  // top slot depth incl. lip
+  const BOTTOM_H = 120;              // bottom slot area
+  const PEG_ROWS = 9;
+  const PEG_TOP = TOP_H + 58;
+  const PEG_BOTTOM = BOARD_H - BOTTOM_H - 34;
+  const CHIP_R = 28;
+
+  const board = document.getElementById('board');
+  const boardWrap = document.getElementById('boardWrap');
+  const topSlotsEl = document.getElementById('topSlots');
+  const bottomSlotsEl = document.getElementById('bottomSlots');
+  const nameSel = document.getElementById('nameSel');
+  const orderList = document.getElementById('orderList');
+  const picker = document.getElementById('picker');
+  const toast = document.getElementById('toast');
+  const theme = document.getElementById('theme');
+
+  // ── State from server ─────────────────────────────────
+  let state = null;          // {names, labels, filled, played, order}
+  let inFlight = false;      // a chip is currently dropping
+  let pegRows = [];          // [{y, xs:[...]}] for animation
+  let lastOrderCount = 0;
+
+  // ── Build board DOM ───────────────────────────────────
+  for (let i = 0; i < COLS; i++) {
+    const s = document.createElement('div');
+    s.className = 'top-slot';
+    s.dataset.idx = i;
+    s.innerHTML = '<div class="arrow">&#9660;</div>';
+    topSlotsEl.appendChild(s);
+  }
+  for (let i = 0; i < COLS; i++) {
+    const s = document.createElement('div');
+    s.className = 'bottom-slot';
+    s.dataset.idx = i;
+    s.innerHTML = '<div class="cap"></div><div class="chip rest-chip"></div><div class="num"></div><div class="slot-name"></div>';
+    bottomSlotsEl.appendChild(s);
+  }
+  // pegs: alternating rows — even rows on column boundaries (9 inner pegs),
+  // odd rows on column centers (10 pegs)
+  for (let r = 0; r < PEG_ROWS; r++) {
+    const y = PEG_TOP + (PEG_BOTTOM - PEG_TOP) * (r / (PEG_ROWS - 1));
+    const xs = [];
+    if (r % 2 === 0) {
+      for (let c = 1; c < COLS; c++) xs.push(c * COL_W);
+    } else {
+      for (let c = 0; c < COLS; c++) xs.push(c * COL_W + COL_W / 2);
+    }
+    pegRows.push({ y, xs });
+    for (const x of xs) {
+      const p = document.createElement('div');
+      p.className = 'peg';
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
+      board.appendChild(p);
+    }
+  }
+
+  // ── Audio: music + synthesized SFX ────────────────────
+  let ac = null;
+  function audio() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  let musicWanted = true;
+  function startMusic() {
+    if (!musicWanted) return;
+    theme.volume = 0.45;
+    theme.play().catch(() => {});
+  }
+  // browsers block autoplay until a user gesture
+  const kick = () => { startMusic(); audio(); document.removeEventListener('pointerdown', kick); };
+  document.addEventListener('pointerdown', kick);
+  document.getElementById('musicBtn').addEventListener('click', (e) => {
+    musicWanted = !musicWanted;
+    e.currentTarget.classList.toggle('music-off', !musicWanted);
+    if (musicWanted) startMusic(); else theme.pause();
+  });
+
+  function pegClick() {
+    const ctx = audio(), t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1500 + Math.random() * 900, t);
+    g.gain.setValueAtTime(0.22, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + 0.08);
+    // tiny wooden knock underneath
+    const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(320 + Math.random() * 120, t);
+    g2.gain.setValueAtTime(0.12, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    o2.connect(g2).connect(ctx.destination);
+    o2.start(t); o2.stop(t + 0.06);
+  }
+
+  function landSound() {
+    const ctx = audio(), t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.18);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + 0.3);
+    // celebratory ding-ding
+    [523, 784, 1047].forEach((f, i) => {
+      const od = ctx.createOscillator(), gd = ctx.createGain();
+      od.type = 'triangle';
+      od.frequency.setValueAtTime(f, t + 0.15 + i * 0.09);
+      gd.gain.setValueAtTime(0.0001, t);
+      gd.gain.setValueAtTime(0.25, t + 0.15 + i * 0.09);
+      gd.gain.exponentialRampToValueAtTime(0.001, t + 0.15 + i * 0.09 + 0.35);
+      od.connect(gd).connect(ctx.destination);
+      od.start(t + 0.15 + i * 0.09); od.stop(t + 1.2);
+    });
+  }
+
+  function capClank() {
+    const ctx = audio(), t = ctx.currentTime;
+    [412, 578, 833].forEach(f => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(f * (0.98 + Math.random() * 0.04), t);
+      g.gain.setValueAtTime(0.16, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 350;
+      o.connect(hp).connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.25);
+    });
+  }
+
+  function crowdBoo() {
+    const ctx = audio(), t = ctx.currentTime, dur = 1.9;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, t);
+    master.gain.linearRampToValueAtTime(0.5, t + 0.25);
+    master.gain.setValueAtTime(0.5, t + dur - 0.6);
+    master.gain.linearRampToValueAtTime(0.0001, t + dur);
+    master.connect(ctx.destination);
+    // a handful of low voices sliding downward = "boooo"
+    for (let v = 0; v < 6; v++) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth';
+      const f0 = 150 + Math.random() * 110;
+      o.frequency.setValueAtTime(f0, t);
+      o.frequency.linearRampToValueAtTime(f0 * 0.72, t + dur);
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+      lfo.frequency.value = 4 + Math.random() * 3;
+      lfoG.gain.value = 6 + Math.random() * 6;
+      lfo.connect(lfoG).connect(o.frequency);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(500, t);
+      bp.frequency.linearRampToValueAtTime(280, t + dur);
+      bp.Q.value = 1.2;
+      g.gain.value = 0.09;
+      o.connect(bp).connect(g).connect(master);
+      o.start(t); o.stop(t + dur);
+      lfo.start(t); lfo.stop(t + dur);
+    }
+    // crowd rumble
+    const len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) { last = last * 0.97 + (Math.random() * 2 - 1) * 0.03; d[i] = last * 8; }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+    const ng = ctx.createGain(); ng.gain.value = 0.4;
+    src.connect(lp).connect(ng).connect(master);
+    src.start(t);
+  }
+
+  // ── Server sync ───────────────────────────────────────
+  async function fetchState() {
+    try {
+      const r = await fetch('/api/plinko/state');
+      if (!r.ok) return;
+      applyState(await r.json());
+    } catch (e) { /* transient network issue; next poll retries */ }
+  }
+
+  function ordinal(n) {
+    const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function applyState(s) {
+    state = s;
+    // names dropdown (only build once)
+    if (nameSel.options.length <= 1) {
+      for (const n of s.names) {
+        const o = document.createElement('option');
+        o.value = n; o.textContent = n;
+        nameSel.appendChild(o);
+      }
+    }
+    // bottom slots
+    const slots = bottomSlotsEl.children;
+    for (let i = 0; i < COLS; i++) {
+      const el = slots[i];
+      el.querySelector('.num').textContent = s.labels[i];
+      const who = s.filled[i];
+      el.classList.toggle('filled', !!who);
+      el.querySelector('.slot-name').textContent = who || '';
+    }
+    // draft order list
+    const byPos = {};
+    for (const r of s.order) byPos[r.position] = r.name;
+    orderList.innerHTML = '';
+    for (let p = 1; p <= 10; p++) {
+      const li = document.createElement('li');
+      const who = byPos[p];
+      li.innerHTML = '<span class="pos">' + ordinal(p) + '</span><span class="who ' + (who ? '' : 'empty') + '">' +
+        (who ? who : 'open') + '</span>';
+      orderList.appendChild(li);
+    }
+    if (s.order.length > lastOrderCount && lastOrderCount > 0) {
+      // someone (maybe on another machine) just landed — flash their row
+      for (const li of orderList.children) {
+        if (!li.querySelector('.who').classList.contains('empty')) li.classList.add('just-added');
+      }
+    }
+    lastOrderCount = s.order.length;
+    updateLock();
+  }
+
+  function updateLock() {
+    const name = nameSel.value;
+    const locked = !!(name && state && state.played.includes(name));
+    boardWrap.classList.toggle('locked', locked);
+    board.classList.toggle('locked', locked);
+    document.getElementById('lockBanner').innerHTML = locked
+      ? 'BOARD LOCKED<br><span style="font-size:18px">' + name + ' already played!</span>'
+      : 'BOARD LOCKED';
+  }
+  nameSel.addEventListener('change', updateLock);
+
+  fetchState();
+  setInterval(() => { if (!inFlight) fetchState(); }, 3000);
+
+  // ── Toast helper ──────────────────────────────────────
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.remove('show');
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  // ── Drag & drop from the chip pile ────────────────────
+  let dragChip = null, hotSlot = -1;
+
+  document.getElementById('chipPile').addEventListener('pointerdown', (e) => {
+    if (!e.target.classList.contains('chip')) return;
+    e.preventDefault();
+    if (inFlight) return;
+    const name = nameSel.value;
+    if (!name) {
+      picker.classList.remove('shake'); void picker.offsetWidth; picker.classList.add('shake');
+      showToast('Pick your name from the drop down first!');
+      return;
+    }
+    if (state && state.played.includes(name)) { updateLock(); showToast(name + ' already played — board locked!'); return; }
+    dragChip = document.createElement('div');
+    dragChip.className = 'chip drag-chip';
+    document.body.appendChild(dragChip);
+    moveDrag(e);
+  });
+
+  function topSlotAt(clientX, clientY) {
+    const rect = topSlotsEl.getBoundingClientRect();
+    if (clientY < rect.top - 60 || clientY > rect.bottom + 20) return -1;
+    if (clientX < rect.left || clientX > rect.right) return -1;
+    const idx = Math.floor((clientX - rect.left) / (rect.width / COLS));
+    return Math.max(0, Math.min(COLS - 1, idx));
+  }
+
+  function moveDrag(e) {
+    dragChip.style.left = e.clientX + 'px';
+    dragChip.style.top = e.clientY + 'px';
+    const idx = topSlotAt(e.clientX, e.clientY);
+    if (idx !== hotSlot) {
+      if (hotSlot >= 0) topSlotsEl.children[hotSlot].classList.remove('hot');
+      if (idx >= 0) topSlotsEl.children[idx].classList.add('hot');
+      hotSlot = idx;
+    }
+  }
+
+  document.addEventListener('pointermove', (e) => { if (dragChip) moveDrag(e); });
+  document.addEventListener('pointerup', (e) => {
+    if (!dragChip) return;
+    const idx = topSlotAt(e.clientX, e.clientY);
+    dragChip.remove(); dragChip = null;
+    if (hotSlot >= 0) topSlotsEl.children[hotSlot].classList.remove('hot');
+    hotSlot = -1;
+    if (idx >= 0) dropChip(idx);
+  });
+  document.addEventListener('pointercancel', () => {
+    if (dragChip) { dragChip.remove(); dragChip = null; }
+    if (hotSlot >= 0) { topSlotsEl.children[hotSlot].classList.remove('hot'); hotSlot = -1; }
+  });
+
+  // ── The drop ──────────────────────────────────────────
+  async function dropChip(topIdx) {
+    const name = nameSel.value;
+    if (!name || inFlight) return;
+    inFlight = true;
+    let resp;
+    try {
+      const r = await fetch('/api/plinko/drop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, topSlot: topIdx }),
+      });
+      resp = await r.json();
+      if (!r.ok) {
+        inFlight = false;
+        if (resp && resp.error === 'already_played') {
+          if (resp.state) applyState(resp.state);
+          updateLock();
+          showToast(name + ' already played — board locked!');
+        } else {
+          showToast((resp && resp.error) || 'Something went wrong — try again');
+        }
+        return;
+      }
+    } catch (err) {
+      inFlight = false;
+      showToast('Connection problem — try again');
+      return;
+    }
+    await animateFall(topIdx, resp.bottomIndex, resp.result === 'blocked');
+    if (resp.result === 'blocked') {
+      crowdBoo();
+      showToast('That slot is capped! Grab another chip and try a different slot.');
+    } else {
+      landSound();
+      if (resp.state) applyState(resp.state); else fetchState();
+      showResult(resp.position, name);
+    }
+    if (resp.result === 'blocked' && resp.state) applyState(resp.state);
+    inFlight = false;
+  }
+
+  // Build a bouncy waypoint path from the top slot to the target column.
+  function buildPath(topIdx, bottomIdx) {
+    const startX = topIdx * COL_W + COL_W / 2;
+    const endX = bottomIdx * COL_W + COL_W / 2;
+    const pts = [{ x: startX, y: TOP_H - 20 }];
+    for (let r = 0; r < PEG_ROWS; r++) {
+      const f = (r + 1) / (PEG_ROWS + 1);
+      // drift toward the target with random zig-zag on top
+      const drift = startX + (endX - startX) * (f * f * (3 - 2 * f)); // smoothstep
+      const wiggleAmp = COL_W * (0.55 + Math.random() * 0.5) * Math.sin(Math.PI * f);
+      const wiggle = (Math.random() < 0.5 ? -1 : 1) * wiggleAmp;
+      let x = drift + wiggle;
+      x = Math.max(CHIP_R + 6, Math.min(BOARD_W - CHIP_R - 6, x));
+      pts.push({ x, y: pegRows[r].y });
+    }
+    pts.push({ x: endX, y: BOARD_H - BOTTOM_H + 6 });
+    return pts;
+  }
+
+  function flashNearestPeg(row, x) {
+    const rowInfo = pegRows[row];
+    if (!rowInfo) return;
+    let best = null, bd = 1e9;
+    for (const px of rowInfo.xs) { const d = Math.abs(px - x); if (d < bd) { bd = d; best = px; } }
+    for (const el of board.querySelectorAll('.peg')) {
+      if (Math.abs(parseFloat(el.style.left) - best) < 1 && Math.abs(parseFloat(el.style.top) - rowInfo.y) < 1) {
+        el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+      }
+    }
+  }
+
+  function animateFall(topIdx, bottomIdx, blocked) {
+    return new Promise((resolve) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip fall-chip';
+      board.appendChild(chip);
+      const pts = buildPath(topIdx, bottomIdx);
+      const segDur = [];
+      for (let i = 1; i < pts.length; i++) {
+        segDur.push(220 + Math.abs(pts[i].x - pts[i - 1].x) * 0.8 + Math.random() * 60);
+      }
+      let seg = 0, segStart = null;
+
+      function place(x, y) {
+        chip.style.left = (x - CHIP_R) + 'px';
+        chip.style.top = (y - CHIP_R) + 'px';
+      }
+      place(pts[0].x, pts[0].y);
+
+      function step(ts) {
+        if (segStart === null) segStart = ts;
+        const t = Math.min(1, (ts - segStart) / segDur[seg]);
+        const a = pts[seg], b = pts[seg + 1];
+        // ease-in vertical (gravity), ease horizontal, with a little arc
+        const ty = t * t;
+        const y = a.y + (b.y - a.y) * ty;
+        const tx = t * t * (3 - 2 * t);
+        const x = a.x + (b.x - a.x) * tx;
+        place(x, y);
+        if (t >= 1) {
+          seg++;
+          segStart = null;
+          if (seg <= pts.length - 2) {
+            pegClick();
+            flashNearestPeg(seg - 1, pts[seg].x);
+            requestAnimationFrame(step);
+          } else {
+            // reached the slot mouth
+            if (blocked) bounceOff(); else settle();
+          }
+        } else {
+          requestAnimationFrame(step);
+        }
+      }
+
+      function settle() {
+        // slide down inside the slot and vanish behind the resting chip
+        const endY = BOARD_H - 66;
+        const x = pts[pts.length - 1].x;
+        const startY = pts[pts.length - 1].y;
+        let s0 = null;
+        function fall(ts) {
+          if (s0 === null) s0 = ts;
+          const t = Math.min(1, (ts - s0) / 200);
+          place(x, startY + (endY - startY) * t * t);
+          if (t < 1) requestAnimationFrame(fall);
+          else { chip.remove(); resolve(); }
+        }
+        requestAnimationFrame(fall);
+      }
+
+      function bounceOff() {
+        capClank();
+        // ricochet off the cap: hop up and sideways, then tumble off the board
+        const x0 = pts[pts.length - 1].x;
+        const y0 = pts[pts.length - 1].y;
+        const dir = x0 < BOARD_W / 2 ? -1 : 1;
+        let s0 = null;
+        const dur = 900;
+        function fly(ts) {
+          if (s0 === null) s0 = ts;
+          const t = Math.min(1, (ts - s0) / dur);
+          const x = x0 + dir * 220 * t;
+          const y = y0 - 140 * t + 480 * t * t;   // up then well past the bottom edge
+          place(x, y);
+          chip.style.transform = 'rotate(' + (dir * t * 540) + 'deg)';
+          chip.style.opacity = String(1 - Math.max(0, t - 0.75) * 4);
+          if (t < 1) requestAnimationFrame(fly);
+          else { chip.remove(); resolve(); }
+        }
+        requestAnimationFrame(fly);
+      }
+
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ── Big result display ────────────────────────────────
+  const resultOverlay = document.getElementById('resultOverlay');
+  function showResult(position, name) {
+    document.getElementById('bigPos').textContent = ordinal(position) + '!';
+    document.getElementById('bigName').textContent = name + ' picks ' + ordinal(position) + '!';
+    resultOverlay.classList.add('show');
+    setTimeout(() => resultOverlay.classList.remove('show'), 4200);
+  }
+  resultOverlay.addEventListener('pointerdown', () => resultOverlay.classList.remove('show'));
+
+  // ── Reset (password protected) ────────────────────────
+  document.getElementById('resetBtn').addEventListener('click', async () => {
+    const pw = prompt('Enter the reset password:');
+    if (pw === null) return;
+    try {
+      const r = await fetch('/api/plinko/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      const j = await r.json();
+      if (!r.ok) { showToast(j.error === 'Wrong password' ? 'Wrong password!' : (j.error || 'Reset failed')); return; }
+      lastOrderCount = 0;
+      applyState(j.state);
+      updateLock();
+      showToast('Game reset! New random board is live.');
+    } catch (e) { showToast('Reset failed — connection problem'); }
+  });
+})();
+</script>
+</body>
+</html>
