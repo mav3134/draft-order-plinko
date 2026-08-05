@@ -91,14 +91,19 @@
   .picker.shake { animation: shake .4s; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
 
-  /* ── Chip pile (top-left corner) ───────────────────── */
+  /* ── Left column: chip pile above the instructions ─── */
+  .left-col {
+    grid-column: 1; grid-row: 2 / 4;
+    align-self: start;
+    display: flex; flex-direction: column; gap: 12px;
+  }
   .chip-pile {
-    position: fixed; top: 12px; left: 14px;
-    width: 120px; height: 130px;
+    position: relative;
+    height: 128px;
     z-index: 60;
   }
   .chip-pile .pile-label {
-    position: absolute; bottom: -4px; left: 0; right: 0;
+    position: absolute; bottom: 0; left: 0; right: 0;
     text-align: center; font-size: 15px; color: var(--yellow);
     text-shadow: 1px 1px 0 #000;
   }
@@ -119,25 +124,22 @@
     box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
   }
   .chip-pile .chip { cursor: grab; }
-  .chip-pile .chip:nth-child(1) { top: 34px; left: 26px; }
-  .chip-pile .chip:nth-child(2) { top: 24px; left: 40px; }
-  .chip-pile .chip:nth-child(3) { top: 14px; left: 30px; }
+  .chip-pile .chip:nth-child(1) { top: 40px; left: calc(50% - 40px); }
+  .chip-pile .chip:nth-child(2) { top: 30px; left: calc(50% - 14px); }
+  .chip-pile .chip:nth-child(3) { top: 20px; left: calc(50% - 28px); }
   .drag-chip {
     position: fixed; z-index: 100; pointer-events: none;
     cursor: grabbing;
     transform: translate(-50%, -50%);
   }
-  .fall-chip { position: absolute; z-index: 20; }
+  .fall-chip { position: absolute; z-index: 4; }  /* behind the pegs */
 
   /* ── Instructions (left) ───────────────────────────── */
   .instructions {
-    grid-column: 1; grid-row: 2 / 4;
-    margin-top: 130px;
     background: linear-gradient(#20308f, #101c5e);
     border: 3px solid var(--yellow);
     border-radius: 14px;
     padding: 14px 14px 16px;
-    align-self: start;
     box-shadow: 0 4px 14px rgba(0,0,0,.5);
   }
   .instructions h2 {
@@ -258,6 +260,17 @@
   }
   .top-slot.hot { background: linear-gradient(#ffe873, #fff6c9 70%); }
   .top-slot.hot .arrow { color: var(--red); transform: translateX(-50%) scale(1.4); }
+  /* a slot whose destination is already won: capped in red, no entry */
+  .top-slot .tcap {
+    position: absolute; bottom: -2px; left: -3px; right: -3px; height: 14px;
+    background: linear-gradient(#ff6b6f, #b3161c);
+    border: 2px solid #7a0b10; border-radius: 4px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.5);
+    visibility: hidden; z-index: 3;
+  }
+  .top-slot.capped { background: linear-gradient(rgba(227,39,46,.6), rgba(160,12,18,.85)); }
+  .top-slot.capped .tcap { visibility: visible; }
+  .top-slot.capped .arrow { color: rgba(255,255,255,.55); }
   .top-lip {
     position: absolute; top: 64px; left: 0; right: 0; height: 8px;
     background: linear-gradient(#1a2a6e, #33479e); z-index: 9;
@@ -265,6 +278,7 @@
 
   .peg {
     position: absolute; width: 14px; height: 14px;
+    z-index: 6;              /* pegs sit in front of the falling chip */
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffffff, #cfd3da 45%, #6d7482 90%);
     box-shadow: 1px 2px 3px rgba(0,0,0,.4);
@@ -351,12 +365,11 @@
 
   @media (max-width: 1180px) {
     .stage { grid-template-columns: 1fr; }
-    .title, .picker, .instructions, .order-panel, .board-wrap { grid-column: 1; }
+    .title, .picker, .left-col, .order-panel, .board-wrap { grid-column: 1; }
     .picker { grid-row: auto; }
-    .instructions { grid-row: auto; margin-top: 0; }
+    .left-col { grid-row: auto; }
     .order-panel { grid-row: auto; }
     .board-wrap { grid-row: auto; }
-    .chip-pile { position: absolute; }
   }
 </style>
 </head>
@@ -374,6 +387,13 @@
     </select>
   </div>
 
+  <div class="left-col">
+  <div class="chip-pile" id="chipPile">
+    <div class="chip"></div>
+    <div class="chip"></div>
+    <div class="chip"></div>
+    <div class="pile-label">Grab a chip!</div>
+  </div>
   <div class="instructions">
     <h2>How To Play</h2>
     <ol>
@@ -383,6 +403,7 @@
       <li>Release your chip.</li>
       <li>You can only play 1 chip, then your draft position is locked in!</li>
     </ol>
+  </div>
   </div>
 
   <div class="order-panel">
@@ -402,13 +423,6 @@
     </div>
     <div class="lock-banner" id="lockBanner">BOARD LOCKED</div>
   </div>
-</div>
-
-<div class="chip-pile" id="chipPile">
-  <div class="chip"></div>
-  <div class="chip"></div>
-  <div class="chip"></div>
-  <div class="pile-label">Grab a chip!</div>
 </div>
 
 <div class="result-overlay" id="resultOverlay">
@@ -454,7 +468,7 @@
     const s = document.createElement('div');
     s.className = 'top-slot';
     s.dataset.idx = i;
-    s.innerHTML = '<div class="arrow">&#9660;</div>';
+    s.innerHTML = '<div class="arrow">&#9660;</div><div class="tcap"></div>';
     topSlotsEl.appendChild(s);
   }
   for (let i = 0; i < COLS; i++) {
@@ -638,6 +652,11 @@
       el.classList.toggle('filled', !!who);
       el.querySelector('.slot-name').textContent = who || '';
     }
+    // top slots whose destination is taken get capped off in red
+    const caps = s.cappedTop || [];
+    for (let i = 0; i < COLS; i++) {
+      topSlotsEl.children[i].classList.toggle('capped', !!caps[i]);
+    }
     // draft order list
     const byPos = {};
     for (const r of s.order) byPos[r.position] = r.name;
@@ -715,7 +734,9 @@
   function moveDrag(e) {
     dragChip.style.left = e.clientX + 'px';
     dragChip.style.top = e.clientY + 'px';
-    const idx = topSlotAt(e.clientX, e.clientY);
+    let idx = topSlotAt(e.clientX, e.clientY);
+    // capped slots don't light up — there's no way in
+    if (idx >= 0 && state && state.cappedTop && state.cappedTop[idx]) idx = -1;
     if (idx !== hotSlot) {
       if (hotSlot >= 0) topSlotsEl.children[hotSlot].classList.remove('hot');
       if (idx >= 0) topSlotsEl.children[idx].classList.add('hot');
@@ -766,51 +787,108 @@
       showToast('Connection problem — try again');
       return;
     }
-    await animateFall(topIdx, resp.bottomIndex, resp.result === 'blocked');
     if (resp.result === 'blocked') {
+      if (resp.state) applyState(resp.state);   // make sure the red cap is showing
+      await animateCapBounce(topIdx);
       crowdBoo();
       showToast('That slot is capped! Grab another chip and try a different slot.');
     } else {
+      await animateFall(topIdx, resp.bottomIndex);
       landSound();
       if (resp.state) applyState(resp.state); else fetchState();
       showResult(resp.position, name);
     }
-    if (resp.result === 'blocked' && resp.state) applyState(resp.state);
     inFlight = false;
   }
 
-  // Build a bouncy waypoint path from the top slot to the target column.
+  // Chip dropped on a capped slot: it never enters the board — it clanks off
+  // the red cap, ricochets away, and tumbles off the edge of the board.
+  function animateCapBounce(topIdx) {
+    return new Promise((resolve) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip fall-chip';
+      chip.style.zIndex = 30;              // above the board — it's outside the pegs
+      board.appendChild(chip);
+      const x0 = topIdx * COL_W + COL_W / 2;
+      const capY = TOP_H - 14;
+      const dir = topIdx < COLS / 2 ? -1 : 1;
+      function place(x, y) {
+        chip.style.left = (x - CHIP_R) + 'px';
+        chip.style.top = (y - CHIP_R) + 'px';
+      }
+      let s0 = null;
+      function dropOnCap(ts) {
+        if (s0 === null) s0 = ts;
+        const t = Math.min(1, (ts - s0) / 260);
+        place(x0, -40 + (capY + 40) * t * t);
+        if (t < 1) { requestAnimationFrame(dropOnCap); return; }
+        capClank();
+        s0 = null;
+        requestAnimationFrame(flyOff);
+      }
+      function flyOff(ts) {
+        if (s0 === null) s0 = ts;
+        const t = Math.min(1, (ts - s0) / 850);
+        const x = x0 + dir * 300 * t;
+        const y = capY - 150 * t + 520 * t * t;
+        place(x, y);
+        chip.style.transform = 'rotate(' + (dir * t * 560) + 'deg)';
+        chip.style.opacity = String(1 - Math.max(0, t - 0.7) * 3.3);
+        if (t < 1) requestAnimationFrame(flyOff);
+        else { chip.remove(); resolve(); }
+      }
+      requestAnimationFrame(dropOnCap);
+    });
+  }
+
+  // Build the chip's path in half-column units so every waypoint is a GAP
+  // between two pegs: the chip threads the gaps and visibly caroms off peg
+  // edges instead of passing through them. Peg rows alternate, so each row
+  // the chip must shift an odd number of half-columns; ±1 is a normal bounce,
+  // ±3 is an occasional hard ricochet (also how a chip can cross the whole
+  // board when its secret target is far away).
+  const HALF = COL_W / 2;
   function buildPath(topIdx, bottomIdx) {
-    const startX = topIdx * COL_W + COL_W / 2;
-    const endX = bottomIdx * COL_W + COL_W / 2;
-    const pts = [{ x: startX, y: TOP_H - 20 }];
-    for (let r = 0; r < PEG_ROWS; r++) {
-      const f = (r + 1) / (PEG_ROWS + 1);
-      // drift toward the target with random zig-zag on top
-      const drift = startX + (endX - startX) * (f * f * (3 - 2 * f)); // smoothstep
-      const wiggleAmp = COL_W * (0.55 + Math.random() * 0.5) * Math.sin(Math.PI * f);
-      const wiggle = (Math.random() < 0.5 ? -1 : 1) * wiggleAmp;
-      let x = drift + wiggle;
-      x = Math.max(CHIP_R + 6, Math.min(BOARD_W - CHIP_R - 6, x));
-      pts.push({ x, y: pegRows[r].y });
+    let p = 2 * topIdx + 1;                 // current x in half-columns
+    const target = 2 * bottomIdx + 1;
+    const pts = [{ x: p * HALF, y: TOP_H - 20, dir: 0 }];
+    pts.push({ x: p * HALF, y: pegRows[0].y, dir: 0 });   // straight through row 0's gap
+    for (let r = 1; r < PEG_ROWS; r++) {
+      const rowsLeft = PEG_ROWS - 1 - r;    // bounces remaining after this one
+      const need = target - p;
+      const options = [-3, -1, 1, 3].filter(s =>
+        Math.abs(need - s) <= 3 * rowsLeft && p + s >= 1 && p + s <= 2 * COLS - 1);
+      const gentle = options.filter(s => Math.abs(s) === 1);
+      let pick;
+      if (gentle.length && Math.random() < 0.8) {
+        const toward = gentle.filter(s => s * need > 0);
+        pick = (toward.length && Math.random() < 0.6)
+          ? toward[0]
+          : gentle[Math.floor(Math.random() * gentle.length)];
+      } else {
+        pick = options[Math.floor(Math.random() * options.length)];
+      }
+      p += pick;
+      pts.push({ x: p * HALF, y: pegRows[r].y, dir: Math.sign(pick) });
     }
-    pts.push({ x: endX, y: BOARD_H - BOTTOM_H + 6 });
+    pts.push({ x: target * HALF, y: BOARD_H - BOTTOM_H + 6, dir: 0 });
     return pts;
   }
 
-  function flashNearestPeg(row, x) {
+  // Flash the peg the chip just glanced off: it sits one half-column back,
+  // against the direction of the bounce.
+  function flashBouncedPeg(row, x, dir) {
     const rowInfo = pegRows[row];
-    if (!rowInfo) return;
-    let best = null, bd = 1e9;
-    for (const px of rowInfo.xs) { const d = Math.abs(px - x); if (d < bd) { bd = d; best = px; } }
+    if (!rowInfo || !dir) return;
+    const pegX = x - dir * HALF;
     for (const el of board.querySelectorAll('.peg')) {
-      if (Math.abs(parseFloat(el.style.left) - best) < 1 && Math.abs(parseFloat(el.style.top) - rowInfo.y) < 1) {
+      if (Math.abs(parseFloat(el.style.left) - pegX) < 2 && Math.abs(parseFloat(el.style.top) - rowInfo.y) < 2) {
         el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
       }
     }
   }
 
-  function animateFall(topIdx, bottomIdx, blocked) {
+  function animateFall(topIdx, bottomIdx) {
     return new Promise((resolve) => {
       const chip = document.createElement('div');
       chip.className = 'chip fall-chip';
@@ -842,12 +920,13 @@
           seg++;
           segStart = null;
           if (seg <= pts.length - 2) {
-            pegClick();
-            flashNearestPeg(seg - 1, pts[seg].x);
+            if (pts[seg].dir) {
+              pegClick();
+              flashBouncedPeg(seg - 1, pts[seg].x, pts[seg].dir);
+            }
             requestAnimationFrame(step);
           } else {
-            // reached the slot mouth
-            if (blocked) bounceOff(); else settle();
+            settle();   // reached the slot mouth
           }
         } else {
           requestAnimationFrame(step);
@@ -868,28 +947,6 @@
           else { chip.remove(); resolve(); }
         }
         requestAnimationFrame(fall);
-      }
-
-      function bounceOff() {
-        capClank();
-        // ricochet off the cap: hop up and sideways, then tumble off the board
-        const x0 = pts[pts.length - 1].x;
-        const y0 = pts[pts.length - 1].y;
-        const dir = x0 < BOARD_W / 2 ? -1 : 1;
-        let s0 = null;
-        const dur = 900;
-        function fly(ts) {
-          if (s0 === null) s0 = ts;
-          const t = Math.min(1, (ts - s0) / dur);
-          const x = x0 + dir * 220 * t;
-          const y = y0 - 140 * t + 480 * t * t;   // up then well past the bottom edge
-          place(x, y);
-          chip.style.transform = 'rotate(' + (dir * t * 540) + 'deg)';
-          chip.style.opacity = String(1 - Math.max(0, t - 0.75) * 4);
-          if (t < 1) requestAnimationFrame(fly);
-          else { chip.remove(); resolve(); }
-        }
-        requestAnimationFrame(fly);
       }
 
       requestAnimationFrame(step);

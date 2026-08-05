@@ -99,6 +99,10 @@ function statePayload() {
     names: NAMES,
     labels: LABELS,
     filled: db.filled.slice(),   // bottom slots left→right: player name or null
+    // Top slots whose (secret) destination is already taken — shown capped in
+    // red so nobody can drop there. Because the mapping is a bijection, this
+    // is exactly the set of top slots that have already been played.
+    cappedTop: db.mapping.map(b => !!db.filled[b]),
     played: db.filled.filter(Boolean),
     order,
   };
@@ -132,6 +136,16 @@ app.post('/api/plinko/drop', async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
   res.json({ result: 'landed', bottomIndex, position: LABELS[bottomIndex], state: statePayload() });
+});
+
+// Commissioner's peek: the full top→bottom mapping, guarded by the same
+// password as reset. e.g. /api/plinko/mapping?password=...
+app.get('/api/plinko/mapping', (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Storage not ready' });
+  if ((req.query.password || '') !== RESET_PASSWORD) return res.status(403).json({ error: 'Wrong password' });
+  res.json({
+    mapping: db.mapping.map((b, i) => ({ topSlot: i + 1, fallsInto: LABELS[b] })),
+  });
 });
 
 app.post('/api/plinko/reset', async (req, res) => {
