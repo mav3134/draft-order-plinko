@@ -28,7 +28,13 @@ const NAMES = ['Andrew', 'Balmer', 'Brent', 'Evan', 'Greg', 'Jay', 'Mikaela', 'S
 // odds fan right, so 9th and 10th end up on the outside edges.
 const LABELS = [10, 8, 6, 4, 2, 1, 3, 5, 7, 9];
 const RESET_PASSWORD = 'draft31';
-const LOCAL_STATE_FILE = path.join(__dirname, 'data', 'plinko.json');
+// On Azure App Service, /home is persistent shared storage that survives both
+// restarts and redeploys (the deploy only replaces /home/site/wwwroot), so the
+// game state lives there with zero extra configuration. Anywhere else, it
+// lives next to the code in data/plinko.json.
+const LOCAL_STATE_FILE = process.env.WEBSITE_SITE_NAME
+  ? '/home/data/plinko.json'
+  : path.join(__dirname, 'data', 'plinko.json');
 
 let db = null;          // {mapping, filled, createdAt}
 let blobClient = null;  // BlockBlobClient for plinko.json when Azure is configured

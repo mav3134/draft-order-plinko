@@ -31,13 +31,19 @@ npm install
 npm start          # http://localhost:3000
 ```
 
-State is kept in `data/plinko.json` by default. To store state in Azure Blob
-Storage instead (recommended for Azure App Service, where local disk resets on
-redeploy), set `AZURE_STORAGE_CONNECTION_STRING` — state then lives as
-`plinko.json` in a `plinko` container.
+State is kept in `data/plinko.json` by default. On Azure App Service it is
+automatically kept in `/home/data/plinko.json` instead, which survives both
+restarts and redeploys — no configuration needed. Optionally, set
+`AZURE_STORAGE_CONNECTION_STRING` to store state in Azure Blob Storage
+(`plinko.json` in a `plinko` container).
 
-## Deploy
+## Deploy (Azure App Service)
 
-Any Node 18+ host works. For Azure App Service: create a Web App, point its
-deployment at this repo (Deployment Center → GitHub), and add
-`AZURE_STORAGE_CONNECTION_STRING` under Configuration → Application settings.
+1. Azure Portal → App Services → **Create → Web App**. Runtime **Node 20 LTS**
+   on Linux; any always-on-capable plan works (Free F1 is fine — it just cold
+   starts after idle).
+2. On the new app: **Deployment Center → Source: GitHub**, pick this repo and
+   the `main` branch, Save. Azure adds the GitHub Actions workflow and
+   deploys; from then on every push to `main` auto-deploys.
+
+That's it — the game is at `https://<app-name>.azurewebsites.net`.
