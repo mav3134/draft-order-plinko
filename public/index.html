@@ -43,47 +43,27 @@
     position: relative;
     display: grid;
     grid-template-columns: 250px minmax(660px, 1fr) 250px;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: 1fr;
     gap: 10px 14px;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 10px 14px 30px;
+    padding: 12px 14px 30px;
   }
 
-  /* ── Title ─────────────────────────────────────────── */
-  .title {
-    grid-column: 1 / 4; grid-row: 1;
-    text-align: center;
-    font-family: 'Titan One', 'Arial Black', sans-serif;
-    font-size: clamp(40px, 6vw, 72px);
-    line-height: 1.05;
-    letter-spacing: 2px;
-    color: var(--yellow);
-    -webkit-text-stroke: 2px #a30d12;
-    text-shadow:
-      3px 3px 0 var(--red), 5px 5px 0 #8c0e13,
-      7px 7px 0 rgba(0,0,0,.45),
-      0 0 26px rgba(255, 210, 31, .35);
-    transform: rotate(-2deg);
-    padding-top: 4px;
-  }
-
-  /* ── Name picker ───────────────────────────────────── */
+  /* ── Name picker (left column) ─────────────────────── */
   .picker {
-    grid-column: 2; grid-row: 2;
-    justify-self: center;
-    display: flex; align-items: center; gap: 10px;
+    display: flex; flex-direction: column; gap: 6px;
     background: linear-gradient(#20308f, #101c5e);
     border: 3px solid var(--yellow);
     border-radius: 14px;
-    padding: 8px 16px;
+    padding: 10px 14px 12px;
     box-shadow: 0 4px 14px rgba(0,0,0,.5);
     z-index: 5;
   }
-  .picker label { font-size: 20px; color: var(--yellow); text-shadow: 1px 1px 0 #000; }
+  .picker label { font-size: 20px; color: var(--yellow); text-shadow: 1px 1px 0 #000; text-align: center; }
   .picker select {
-    font-family: inherit; font-size: 20px;
-    padding: 6px 12px;
+    font-family: inherit; font-size: 19px;
+    padding: 6px 10px; width: 100%;
     border-radius: 8px; border: 2px solid #0a1030;
     background: #fff8e1; color: #1a1a1a;
     cursor: pointer;
@@ -93,7 +73,7 @@
 
   /* ── Left column: chip pile above the instructions ─── */
   .left-col {
-    grid-column: 1; grid-row: 2 / 4;
+    grid-column: 1; grid-row: 1;
     align-self: start;
     display: flex; flex-direction: column; gap: 12px;
   }
@@ -108,13 +88,13 @@
     text-shadow: 1px 1px 0 #000;
   }
   .chip {
-    width: 56px; height: 56px;
+    width: 40px; height: 40px;
     border-radius: 50%;
     background:
       radial-gradient(circle at 50% 50%, #fdfdf6 0 26%, transparent 27%),
       repeating-conic-gradient(#e8e4d4 0deg 12deg, #fdfdf6 12deg 24deg);
-    border: 4px solid #d5cfb8;
-    box-shadow: inset 0 0 0 3px #fdfdf6, inset 0 0 12px rgba(0,0,0,.25), 0 4px 8px rgba(0,0,0,.55);
+    border: 3px solid #d5cfb8;
+    box-shadow: inset 0 0 0 2px #fdfdf6, inset 0 0 9px rgba(0,0,0,.25), 0 3px 6px rgba(0,0,0,.55);
     position: absolute;
   }
   .chip::after {
@@ -123,10 +103,11 @@
     background: radial-gradient(circle at 38% 32%, #ffffff, #ece7d5 70%);
     box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
   }
+  .chip-pile { height: 100px; }
   .chip-pile .chip { cursor: grab; }
-  .chip-pile .chip:nth-child(1) { top: 40px; left: calc(50% - 40px); }
-  .chip-pile .chip:nth-child(2) { top: 30px; left: calc(50% - 14px); }
-  .chip-pile .chip:nth-child(3) { top: 20px; left: calc(50% - 28px); }
+  .chip-pile .chip:nth-child(1) { top: 34px; left: calc(50% - 32px); }
+  .chip-pile .chip:nth-child(2) { top: 26px; left: calc(50% - 10px); }
+  .chip-pile .chip:nth-child(3) { top: 18px; left: calc(50% - 22px); }
   .drag-chip {
     position: fixed; z-index: 100; pointer-events: none;
     cursor: grabbing;
@@ -170,7 +151,7 @@
 
   /* ── Draft order (right) ───────────────────────────── */
   .order-panel {
-    grid-column: 3; grid-row: 2 / 4;
+    grid-column: 3; grid-row: 1;
     background: linear-gradient(#20308f, #101c5e);
     border: 3px solid var(--yellow);
     border-radius: 14px;
@@ -214,10 +195,9 @@
 
   /* ── Board ─────────────────────────────────────────── */
   .board-wrap {
-    grid-column: 2; grid-row: 3;
+    grid-column: 2; grid-row: 1;
     justify-self: center;
     position: relative;
-    margin-top: 6px;
   }
   .board {
     position: relative;
@@ -276,8 +256,26 @@
     background: linear-gradient(#1a2a6e, #33479e); z-index: 9;
   }
 
+  /* ── Board title (painted on the board, like the real thing) ── */
+  .board-title {
+    position: absolute; top: 96px; left: 0; right: 0;
+    text-align: center; z-index: 2;   /* behind pegs and chips */
+    font-family: 'Titan One', 'Arial Black', sans-serif;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .board-title span {
+    display: block;
+    color: var(--yellow);
+    -webkit-text-stroke: 2px #a30d12;
+    text-shadow: 3px 3px 0 var(--red), 5px 5px 0 rgba(0,0,0,.25);
+  }
+  .board-title .line1 { font-size: 44px; letter-spacing: 3px; }
+  .board-title .line2 { font-size: 78px; letter-spacing: 8px; margin-top: 4px; }
+
   .peg {
-    position: absolute; width: 14px; height: 14px;
+    position: absolute; width: 10px; height: 10px;
     z-index: 6;              /* pegs sit in front of the falling chip */
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffffff, #cfd3da 45%, #6d7482 90%);
@@ -295,23 +293,25 @@
   .bottom-slot {
     flex: 1; position: relative;
     border-left: 6px solid #1a2a6e;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
     background: linear-gradient(rgba(26,42,110,.06), rgba(26,42,110,.16));
     transition: background .3s;
   }
   .bottom-slot:first-child { border-left: none; }
   .bottom-slot .num {
+    position: absolute; top: 2px; left: 0; right: 0;
+    text-align: center;
     font-family: 'Titan One', sans-serif;
     font-size: 30px; color: var(--blue);
     text-shadow: 1px 1px 0 #fff, 2px 2px 2px rgba(0,0,0,.35);
-    margin-bottom: 4px; z-index: 2;
+    z-index: 2;
   }
   .bottom-slot .slot-name {
+    position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
     font-family: Arial, sans-serif; font-weight: bold;
     font-size: 11px; color: #fff; z-index: 2;
     background: rgba(0,0,0,.55); border-radius: 6px;
-    padding: 1px 5px; margin-bottom: 6px;
-    visibility: hidden; max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 1px 5px;
+    visibility: hidden; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .bottom-slot .cap {
     position: absolute; top: -6px; left: -3px; right: -3px; height: 12px;
@@ -324,7 +324,7 @@
   .bottom-slot.filled .num { color: #fff; text-shadow: 1px 1px 0 #7a0b10, 2px 2px 2px rgba(0,0,0,.5); }
   .bottom-slot.filled .cap, .bottom-slot.filled .slot-name { visibility: visible; }
   .bottom-slot .rest-chip {
-    position: absolute; bottom: 52px; left: 50%; transform: translate(-50%, 0) scale(.86);
+    position: absolute; top: 46px; left: 50%; transform: translate(-50%, 0);
     visibility: hidden; z-index: 1;
   }
   .bottom-slot.filled .rest-chip { visibility: visible; }
@@ -376,23 +376,21 @@
 <body>
 
 <audio id="theme" src="theme.mp3" loop preload="auto"></audio>
+<audio id="horn" src="losing-horn.mp3" preload="auto"></audio>
 
 <div class="stage">
-  <h1 class="title">Draft Order Plinko</h1>
-
-  <div class="picker" id="picker">
-    <label for="nameSel">Player:</label>
-    <select id="nameSel">
-      <option value="">— pick your name —</option>
-    </select>
-  </div>
-
   <div class="left-col">
   <div class="chip-pile" id="chipPile">
     <div class="chip"></div>
     <div class="chip"></div>
     <div class="chip"></div>
     <div class="pile-label">Grab a chip!</div>
+  </div>
+  <div class="picker" id="picker">
+    <label for="nameSel">Player:</label>
+    <select id="nameSel">
+      <option value="">— pick your name —</option>
+    </select>
   </div>
   <div class="instructions">
     <h2>How To Play</h2>
@@ -419,6 +417,7 @@
     <div class="board" id="board">
       <div class="top-slots" id="topSlots"></div>
       <div class="top-lip"></div>
+      <div class="board-title"><span class="line1">DRAFT ORDER</span><span class="line2">PLINKO</span></div>
       <div class="bottom-slots" id="bottomSlots"></div>
     </div>
     <div class="lock-banner" id="lockBanner">BOARD LOCKED</div>
@@ -442,10 +441,13 @@
   const BOARD_W = 640, BOARD_H = 780;
   const TOP_H = 72;                  // top slot depth incl. lip
   const BOTTOM_H = 120;              // bottom slot area
-  const PEG_ROWS = 9;
-  const PEG_TOP = TOP_H + 58;
-  const PEG_BOTTOM = BOARD_H - BOTTOM_H - 34;
-  const CHIP_R = 28;
+  // 19 rows: row 0 is a straight drop, and each of the remaining 18 rows
+  // shifts the chip at most half a column (one peg) left or right — exactly
+  // enough for an edge slot's chip to travel all the way to the far edge.
+  const PEG_ROWS = 19;
+  const PEG_TOP = TOP_H + 46;
+  const PEG_BOTTOM = BOARD_H - BOTTOM_H - 22;
+  const CHIP_R = 20;
 
   const board = document.getElementById('board');
   const boardWrap = document.getElementById('boardWrap');
@@ -456,6 +458,7 @@
   const picker = document.getElementById('picker');
   const toast = document.getElementById('toast');
   const theme = document.getElementById('theme');
+  const horn = document.getElementById('horn');
 
   // ── State from server ─────────────────────────────────
   let state = null;          // {names, labels, filled, played, order}
@@ -519,6 +522,15 @@
     e.currentTarget.classList.toggle('music-off', !musicWanted);
     if (musicWanted) startMusic(); else theme.pause();
   });
+
+  // The losing horn: cut the theme, play the horn, then bring the theme back.
+  function playHorn() {
+    theme.pause();
+    horn.volume = 0.9;
+    horn.currentTime = 0;
+    horn.onended = () => { if (musicWanted) startMusic(); };
+    horn.play().catch(() => { if (musicWanted) startMusic(); });
+  }
 
   function pegClick() {
     const ctx = audio(), t = ctx.currentTime;
@@ -790,11 +802,12 @@
     if (resp.result === 'blocked') {
       if (resp.state) applyState(resp.state);   // make sure the red cap is showing
       await animateCapBounce(topIdx);
+      playHorn();
       crowdBoo();
       showToast('That slot is capped! Grab another chip and try a different slot.');
     } else {
       await animateFall(topIdx, resp.bottomIndex);
-      landSound();
+      if (resp.position === 10) playHorn(); else landSound();
       if (resp.state) applyState(resp.state); else fetchState();
       showResult(resp.position, name);
     }
@@ -843,10 +856,9 @@
 
   // Build the chip's path in half-column units so every waypoint is a GAP
   // between two pegs: the chip threads the gaps and visibly caroms off peg
-  // edges instead of passing through them. Peg rows alternate, so each row
-  // the chip must shift an odd number of half-columns; ±1 is a normal bounce,
-  // ±3 is an occasional hard ricochet (also how a chip can cross the whole
-  // board when its secret target is far away).
+  // edges instead of passing through them. Peg rows alternate, so after the
+  // straight drop through row 0 the chip shifts exactly one half-column
+  // (one peg) left or right at every row — never more.
   const HALF = COL_W / 2;
   function buildPath(topIdx, bottomIdx) {
     let p = 2 * topIdx + 1;                 // current x in half-columns
@@ -856,18 +868,13 @@
     for (let r = 1; r < PEG_ROWS; r++) {
       const rowsLeft = PEG_ROWS - 1 - r;    // bounces remaining after this one
       const need = target - p;
-      const options = [-3, -1, 1, 3].filter(s =>
-        Math.abs(need - s) <= 3 * rowsLeft && p + s >= 1 && p + s <= 2 * COLS - 1);
-      const gentle = options.filter(s => Math.abs(s) === 1);
+      const options = [-1, 1].filter(s =>
+        Math.abs(need - s) <= rowsLeft && p + s >= 1 && p + s <= 2 * COLS - 1);
       let pick;
-      if (gentle.length && Math.random() < 0.8) {
-        const toward = gentle.filter(s => s * need > 0);
-        pick = (toward.length && Math.random() < 0.6)
-          ? toward[0]
-          : gentle[Math.floor(Math.random() * gentle.length)];
-      } else {
-        pick = options[Math.floor(Math.random() * options.length)];
-      }
+      const toward = options.filter(s => s * need > 0);
+      pick = (toward.length && Math.random() < 0.6)
+        ? toward[0]
+        : options[Math.floor(Math.random() * options.length)];
       p += pick;
       pts.push({ x: p * HALF, y: pegRows[r].y, dir: Math.sign(pick) });
     }
@@ -896,7 +903,7 @@
       const pts = buildPath(topIdx, bottomIdx);
       const segDur = [];
       for (let i = 1; i < pts.length; i++) {
-        segDur.push(220 + Math.abs(pts[i].x - pts[i - 1].x) * 0.8 + Math.random() * 60);
+        segDur.push(95 + Math.abs(pts[i].x - pts[i - 1].x) * 0.5 + Math.random() * 40);
       }
       let seg = 0, segStart = null;
 
@@ -934,8 +941,8 @@
       }
 
       function settle() {
-        // slide down inside the slot and vanish behind the resting chip
-        const endY = BOARD_H - 66;
+        // slide down and come to rest just under the slot's number
+        const endY = BOARD_H - BOTTOM_H + 46 + CHIP_R;
         const x = pts[pts.length - 1].x;
         const startY = pts[pts.length - 1].y;
         let s0 = null;
