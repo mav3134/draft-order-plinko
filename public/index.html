@@ -903,7 +903,7 @@
       const pts = buildPath(topIdx, bottomIdx);
       const segDur = [];
       for (let i = 1; i < pts.length; i++) {
-        segDur.push(95 + Math.abs(pts[i].x - pts[i - 1].x) * 0.5 + Math.random() * 40);
+        segDur.push(125 + Math.abs(pts[i].x - pts[i - 1].x) * 0.65 + Math.random() * 52);
       }
       let seg = 0, segStart = null;
 
