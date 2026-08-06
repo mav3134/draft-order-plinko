@@ -377,6 +377,7 @@
 
 <audio id="theme" src="theme.mp3" loop preload="auto"></audio>
 <audio id="horn" src="losing-horn.mp3" preload="auto"></audio>
+<audio id="winner" src="winning-sound.mp3" preload="auto"></audio>
 
 <div class="stage">
   <div class="left-col">
@@ -459,6 +460,7 @@
   const toast = document.getElementById('toast');
   const theme = document.getElementById('theme');
   const horn = document.getElementById('horn');
+  const winner = document.getElementById('winner');
 
   // ── State from server ─────────────────────────────────
   let state = null;          // {names, labels, filled, played, order}
@@ -523,14 +525,16 @@
     if (musicWanted) startMusic(); else theme.pause();
   });
 
-  // The losing horn: cut the theme, play the horn, then bring the theme back.
-  function playHorn() {
+  // Cut the theme, play a one-shot jingle, then bring the theme back.
+  function playJingle(clip) {
     theme.pause();
-    horn.volume = 0.9;
-    horn.currentTime = 0;
-    horn.onended = () => { if (musicWanted) startMusic(); };
-    horn.play().catch(() => { if (musicWanted) startMusic(); });
+    clip.volume = 0.9;
+    clip.currentTime = 0;
+    clip.onended = () => { if (musicWanted) startMusic(); };
+    clip.play().catch(() => { if (musicWanted) startMusic(); });
   }
+  const playHorn = () => playJingle(horn);
+  const playWinner = () => playJingle(winner);
 
   function pegClick() {
     const ctx = audio(), t = ctx.currentTime;
@@ -807,7 +811,9 @@
       showToast('That slot is capped! Grab another chip and try a different slot.');
     } else {
       await animateFall(topIdx, resp.bottomIndex);
-      if (resp.position === 10) playHorn(); else landSound();
+      if (resp.position === 10) playHorn();
+      else if (resp.position === 1) playWinner();
+      else landSound();
       if (resp.state) applyState(resp.state); else fetchState();
       showResult(resp.position, name);
     }
