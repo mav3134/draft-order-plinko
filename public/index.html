@@ -803,6 +803,11 @@
     const name = nameSel.value;
     if (!name || inFlight) return;
     inFlight = true;
+    // slide the page so the whole board is in view for the fall
+    boardWrap.scrollIntoView({
+      behavior: 'smooth',
+      block: window.matchMedia('(max-width: 1180px)').matches ? 'center' : 'nearest',
+    });
     let resp;
     try {
       const r = await fetch('/api/plinko/drop', {
