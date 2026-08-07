@@ -104,6 +104,8 @@
     box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
   }
   .chip-pile { height: 100px; }
+  /* touch-action:none lets a finger drag the chip instead of scrolling the page */
+  .chip-pile .chip, .drag-chip { touch-action: none; -webkit-touch-callout: none; }
   .chip-pile .chip { cursor: grab; }
   .chip-pile .chip:nth-child(1) { top: 34px; left: calc(50% - 32px); }
   .chip-pile .chip:nth-child(2) { top: 26px; left: calc(50% - 10px); }
@@ -364,12 +366,11 @@
   .toast.show { display: block; animation: shake .4s; }
 
   @media (max-width: 1180px) {
-    .stage { grid-template-columns: 1fr; }
-    .title, .picker, .left-col, .order-panel, .board-wrap { grid-column: 1; }
-    .picker { grid-row: auto; }
-    .left-col { grid-row: auto; }
-    .order-panel { grid-row: auto; }
-    .board-wrap { grid-row: auto; }
+    /* stack vertically: chips/picker/instructions, then board, then draft order */
+    .stage { display: flex; flex-direction: column; align-items: stretch; }
+    .left-col { order: 1; }
+    .board-wrap { order: 2; align-self: center; }
+    .order-panel { order: 3; }
   }
 </style>
 </head>
@@ -708,6 +709,29 @@
   fetchState();
   setInterval(() => { if (!inFlight) fetchState(); }, 3000);
 
+  // Shrink the whole board to fit narrow (phone) screens. The chip physics
+  // run in board-local pixels, so scaling the board visually doesn't touch
+  // the game logic — hit testing uses getBoundingClientRect, which scales too.
+  const FRAME_W = 668, FRAME_H = 808;   // board incl. borders/outline
+  function fitBoard() {
+    // screen.width, not innerWidth: before the board shrinks, mobile browsers
+    // zoom the layout viewport out to fit it, which inflates innerWidth
+    const avail = Math.min(window.innerWidth, screen.width);
+    const scale = Math.min(1, (avail - 20) / FRAME_W);
+    if (scale < 1) {
+      board.style.transform = 'scale(' + scale + ')';
+      board.style.transformOrigin = 'top left';
+      boardWrap.style.width = FRAME_W * scale + 'px';
+      boardWrap.style.height = FRAME_H * scale + 'px';
+    } else {
+      board.style.transform = '';
+      boardWrap.style.width = '';
+      boardWrap.style.height = '';
+    }
+  }
+  window.addEventListener('resize', fitBoard);
+  fitBoard();
+
   // ── Toast helper ──────────────────────────────────────
   let toastTimer = null;
   function showToast(msg) {
@@ -972,7 +996,15 @@
     document.getElementById('bigPos').textContent = ordinal(position) + '!';
     document.getElementById('bigName').textContent = name + ' picks ' + ordinal(position) + '!';
     resultOverlay.classList.add('show');
-    setTimeout(() => resultOverlay.classList.remove('show'), 4200);
+    if (window.matchMedia('(max-width: 1180px)').matches) {
+      // mobile: hold on the big graphic a moment, then slide down to the order
+      setTimeout(() => {
+        resultOverlay.classList.remove('show');
+        document.querySelector('.order-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 1700);
+    } else {
+      setTimeout(() => resultOverlay.classList.remove('show'), 4200);
+    }
   }
   resultOverlay.addEventListener('pointerdown', () => resultOverlay.classList.remove('show'));
 
